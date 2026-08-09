@@ -1,0 +1,68 @@
+-- ====================================================
+-- MODERN FAST FPS BOOSTER (INSTANT)
+-- ====================================================
+
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+-- 1. สร้าง GUI
+local Screen = Instance.new("ScreenGui", PlayerGui)
+Screen.Name = "FPSBoosterUI"
+Screen.IgnoreGuiInset = true
+
+local Frame = Instance.new("Frame", Screen)
+Frame.Size = UDim2.new(0, 160, 0, 50)
+Frame.Position = UDim2.new(0.5, -80, 0, 20)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BackgroundTransparency = 0.2
+Frame.BorderSizePixel = 0
+
+local Corner = Instance.new("UICorner", Frame)
+Corner.CornerRadius = UDim.new(0, 12)
+
+local Button = Instance.new("TextButton", Frame)
+Button.Size = UDim2.new(1, 0, 1, 0)
+Button.BackgroundTransparency = 1
+Button.Text = "BOOST FPS"
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 16
+
+-- 2. ฟังก์ชัน Booster แบบเต็มประสิทธิภาพ
+local function RunBoost()
+    Button.Text = "OPTIMIZING..."
+    
+    -- ลบเงาและแสง
+    pcall(function()
+        game:GetService("Lighting").GlobalShadows = false
+        game:GetService("Lighting").OutdoorAmbient = Color3.fromRGB(127, 127, 127)
+    end)
+    
+    -- ปรับ Terrain
+    pcall(function()
+        local T = workspace:FindFirstChildOfClass("Terrain")
+        if T then T.Decoration = false end
+    end)
+    
+    -- ลบใบไม้ เปลี่ยนพื้นผิวเป็นสีเทา
+    task.spawn(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                obj.CastShadow = false
+                if obj.Material ~= Enum.Material.SmoothPlastic then
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.Color = Color3.fromRGB(180, 180, 180)
+                end
+            elseif obj:IsA("Model") and (obj.Name:lower():find("tree") or obj.Name:lower():find("leaf")) then
+                obj:Destroy()
+            end
+        end
+    end)
+    
+    Button.Text = "DONE!"
+    Button.TextColor3 = Color3.fromRGB(85, 255, 127)
+    task.wait(1.5)
+    Screen:Destroy()
+end
+
+-- กดปุ่มแล้วรัน
+Button.MouseButton1Click:Connect(RunBoost)
