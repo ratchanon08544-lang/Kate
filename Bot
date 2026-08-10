@@ -1,0 +1,132 @@
+-- ====================================================
+-- ULTIMATE GRAY CHARACTER & FPS BOOSTER
+-- ====================================================
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ป้องกัน UI ซ้ำ
+if PlayerGui:FindFirstChild("GrayBoosterGUI") then
+    PlayerGui.GrayBoosterGUI:Destroy()
+end
+
+-- สร้าง UI ปุ่มกดรัน
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
+ScreenGui.Name = "GrayBoosterGUI"
+ScreenGui.IgnoreGuiInset = true
+
+local Button = Instance.new("TextButton", ScreenGui)
+Button.Size = UDim2.new(0, 160, 0, 45)
+Button.Position = UDim2.new(0.5, -80, 0, 15)
+Button.Text = "BOOST & GRAY CHAR"
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 14
+
+local Corner = Instance.new("UICorner", Button)
+Corner.CornerRadius = UDim.new(0, 10)
+
+-- ฟังก์ชันปรับแต่งตัวละคร (ลบชุด, ลบไอเทม, เปลี่ยนเป็นสีเทา)
+local function optimizeCharacter(char)
+    if not char then return end
+    
+    -- ลบชุด, เสื้อผ้า, แอคเซสซอรี่, แพนท์, กราฟิกเสื้อ
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Clothing") or v:IsA("Accessory") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") or v:IsA("CharacterMesh") then
+            v:Destroy()
+        end
+    end
+    
+    -- เปลี่ยนชิ้นส่วนร่างกายทั้งหมดเป็นสีเทาเรียบ และปิดเงา
+    for _, part in pairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CastShadow = false
+            part.Material = Enum.Material.SmoothPlastic
+            part.Color = Color3.fromRGB(150, 150, 150)
+        end
+    end
+    
+    -- ดักจับกรณีมีไอเทมโผล่มาทีหลังตอนโหลดเสร็จ
+    char.ChildAdded:Connect(function(v)
+        if v:IsA("Clothing") or v:IsA("Accessory") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") then
+            task.defer(function() v:Destroy() end)
+        elseif v:IsA("BasePart") then
+            v.CastShadow = false
+            v.Material = Enum.Material.SmoothPlastic
+            v.Color = Color3.fromRGB(150, 150, 150)
+        end
+    end)
+end
+
+-- ฟังก์ชันหลักเมื่อกดปุ่ม
+Button.MouseButton1Click:Connect(function()
+    Button.Text = "OPTIMIZING..."
+    Button.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
+
+    -- 1. ลบแสงเงา หมอก และเอฟเฟกต์ทั้งหมดใน Lighting
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 999999
+    Lighting.Brightness = 2
+    Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
+            v:Destroy()
+        end
+    end
+
+    -- 2. เคลียร์ Terrain และแผนที่
+    if Terrain then
+        pcall(function() sethiddenproperty(Terrain, "Decoration", false) end)
+        Terrain.WaterTransparency = 1
+    end
+
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.CastShadow = false
+            if obj.Material ~= Enum.Material.SmoothPlastic and obj.Material ~= Enum.Material.Neon then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.Color = Color3.fromRGB(150, 150, 150)
+            end
+        elseif obj:IsA("Model") then
+            local name = obj.Name:lower()
+            if name:find("tree") or name:find("leaf") or name:find("plant") or name:find("bush") then
+                obj:Destroy()
+            end
+        end
+    end
+
+    -- 3. จัดการตัวละครที่มีอยู่แล้วทุกคนในแมพ
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            optimizeCharacter(p.Character)
+        end
+    end
+
+    -- 4. ดักจับผู้เล่นใหม่หรือคนที่กดรีสปาวน์/เกิดใหม่ ให้เป็นตัวสีเทาอัตโนมัติ
+    Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function(char)
+            char:WaitForChild("HumanoidRootPart", 5)
+            task.wait(0.2)
+            optimizeCharacter(char)
+        end)
+    end)
+
+    -- ดักจับรีสปาวน์ของคนเดิมในเซิร์ฟ
+    for _, p in pairs(Players:GetPlayers()) do
+        p.CharacterAdded:Connect(function(char)
+            char:WaitForChild("HumanoidRootPart", 5)
+            task.wait(0.2)
+            optimizeCharacter(char)
+        end)
+    end
+
+    Button.Text = "DONE!"
+    Button.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    task.wait(1.5)
+    ScreenGui:Destroy()
+end)
