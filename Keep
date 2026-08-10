@@ -1,0 +1,93 @@
+-- ====================================================
+-- WIREFRAME MAP & FPS BOOSTER (WHITE OUTLINES)
+-- ====================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ลบ UI เก่าถ้ามี
+if PlayerGui:FindFirstChild("WireframeGUI") then
+    PlayerGui.WireframeGUI:Destroy()
+end
+
+-- สร้าง UI ปุ่มกดรัน
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
+ScreenGui.Name = "WireframeGUI"
+ScreenGui.IgnoreGuiInset = true
+
+local Button = Instance.new("TextButton", ScreenGui)
+Button.Size = UDim2.new(0, 180, 0, 45)
+Button.Position = UDim2.new(0.5, -90, 0, 15)
+Button.Text = "ENABLE WIREFRAME"
+Button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 14
+
+local Corner = Instance.new("UICorner", Button)
+Corner.CornerRadius = UDim.new(0, 8)
+local Stroke = Instance.new("UIStroke", Button)
+Stroke.Color = Color3.fromRGB(255, 255, 255)
+Stroke.Thickness = 2
+
+-- ฟังก์ชันเมื่อกดปุ่ม
+Button.MouseButton1Click:Connect(function()
+    Button.Text = "PROCESSING..."
+    Button.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
+    Stroke.Color = Color3.fromRGB(0, 0, 0)
+
+    -- 1. ปรับแสงให้สว่างและลบเงา (เพื่อให้เห็นเส้นสีขาวชัดๆ)
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 999999
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 12 -- บังคับให้เป็นตอนเที่ยงวัน
+    
+    for _, v in pairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
+            v:Destroy()
+        end
+    end
+
+    -- 2. จัดการเปลี่ยนวัตถุเป็นเส้นขอบสีขาว
+    local function makeWireframe(part)
+        -- ทำให้วัตถุโปร่งใส ลบเงา และไม่มีสี
+        part.Transparency = 1
+        part.CastShadow = false
+
+        -- สร้างเส้นขอบสีขาว (ถ้ายังไม่มี)
+        if not part:FindFirstChild("WhiteOutline") then
+            local box = Instance.new("SelectionBox")
+            box.Name = "WhiteOutline"
+            box.Adornee = part
+            box.LineThickness = 0.03 -- ความหนาของเส้น (ปรับเพิ่มได้ถ้าอยากให้เส้นหนาขึ้น)
+            box.Color3 = Color3.fromRGB(255, 255, 255) -- สีเส้น (สีขาว)
+            box.SurfaceTransparency = 1 -- ทำให้ผิวด้านในโปร่งใสเห็นแค่ขอบ
+            box.Parent = part
+        end
+    end
+
+    -- ลูปหาชิ้นส่วนทั้งหมดในแมพ
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            -- ยกเว้นตัวละครผู้เล่น (ถ้าอยากให้ผู้เล่นเป็นเส้นขาวด้วย ให้ลบเงื่อนไขนี้ออก)
+            if not obj.Parent:FindFirstChild("Humanoid") then
+                makeWireframe(obj)
+            end
+        end
+    end
+    
+    -- เคลียร์ Terrain
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if Terrain then
+        pcall(function() sethiddenproperty(Terrain, "Decoration", false) end)
+        Terrain.WaterTransparency = 1
+    end
+
+    Button.Text = "WIREFRAME ACTIVE!"
+    Button.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    task.wait(1.5)
+    ScreenGui:Destroy()
+end)
