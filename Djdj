@@ -1,0 +1,234 @@
+-- ==========================================================
+--  Uranus Hub : BlockSpin Ultimate (With Debug Logs)
+-- ==========================================================
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+getgenv().UranusSystem = false
+
+-- สร้างหน้าต่าง UI
+local screenGuiName = "UranusHub_FarmUI"
+if CoreGui:FindFirstChild(screenGuiName) then
+    CoreGui[screenGuiName]:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = screenGuiName
+screenGui.Parent = CoreGui
+screenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 140)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🪐 Uranus Hub : Farm"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 16
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0.9, 0, 0, 50)
+toggleButton.Position = UDim2.new(0.05, 0, 0.45, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleButton.BorderSizePixel = 0
+toggleButton.Text = "Status: OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 15
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = mainFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = toggleButton
+
+toggleButton.MouseButton1Click:Connect(function()
+    getgenv().UranusSystem = not getgenv().UranusSystem
+    if getgenv().UranusSystem then
+        toggleButton.Text = "Status: ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        print("Uranus Hub: เปิดการทำงานแล้ว!")
+    else
+        toggleButton.Text = "Status: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        print("Uranus Hub: ปิดการทำงานแล้ว!")
+        if Workspace:FindFirstChild("UranusRedMarker") then
+            Workspace.UranusRedMarker:Destroy()
+        end
+    end
+end)
+
+-- ฟังก์ชันสร้างแท่งสีแดง
+local function createRedMarker(targetCFrame)
+    if Workspace:FindFirstChild("UranusRedMarker") then
+        Workspace.UranusRedMarker:Destroy()
+    end
+    local marker = Instance.new("Part")
+    marker.Name = "UranusRedMarker"
+    marker.Size = Vector3.new(2, 100, 2)
+    marker.Anchored = true
+    marker.CanCollide = false
+    marker.Transparency = 0.4
+    marker.BrickColor = BrickColor.new("Bright red")
+    marker.Material = Enum.Material.Neon
+    marker.CFrame = targetCFrame + Vector3.new(0, 50, 0)
+    marker.Parent = Workspace
+end
+
+-- ฟังก์ชันเดิน
+local function walkToPosition(targetCFrame)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character.HumanoidRootPart
+    if not humanoid then return false end
+
+    createRedMarker(targetCFrame)
+
+    local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = true })
+    local success, _ = pcall(function()
+        path:ComputeAsync(rootPart.Position, targetCFrame.Position)
+    end)
+
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        for _, waypoint in ipairs(waypoints) do
+            if not getgenv().UranusSystem then return false end
+            humanoid:MoveTo(waypoint.Position)
+            if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+            local reached = false
+            local connection
+            connection = humanoid.MoveToFinished:Connect(function()
+                reached = true
+                if connection then connection:Disconnect() end
+            end)
+            task.spawn(function()
+                task.wait(2.5)
+                if not reached then
+                    reached = true
+                    if connection then connection:Disconnect() end
+                end
+            end)
+            repeat task.wait() until reached
+        end
+        return true
+    else
+        humanoid:MoveTo(targetCFrame.Position)
+        task.wait(2)
+        return true
+    end
+end
+
+-- 1. เช็คบ้าน
+local function ensureHouseExists()
+    local housesFolder = Workspace:FindFirstChild("Houses")
+    if housesFolder then
+        for _, house in ipairs(housesFolder:GetChildren()) do
+            if house:GetAttribute("Owner") == LocalPlayer.Name then
+                return house
+            end
+        end
+    else
+        print("Debug: หา Folder 'Houses' ใน Workspace ไม่เจอ!")
+    end
+
+    local buyHousePrompt = Workspace:FindFirstChild("BuyHousePrompt", true)
+    if buyHousePrompt and buyHousePrompt.Parent then
+        print("Debug: กำลังเดินไปซื้อบ้าน...")
+        walkToPosition(buyHousePrompt.Parent.CFrame)
+        task.wait(0.5)
+        fireproximityprompt(buyHousePrompt)
+        task.wait(1.5)
+    else
+        print("Debug: หาป้ายซื้อบ้าน 'BuyHousePrompt' ไม่เจอ!")
+    end
+    return nil
+end
+
+-- 2. ซื้ออุปกรณ์
+local function buySupplies()
+    local shopNPC = Workspace:FindFirstChild("ShopNPC", true)
+    if shopNPC and shopNPC.PrimaryPart then
+        print("Debug: กำลังเดินไปซื้ออุปกรณ์ที่ร้านค้า...")
+        walkToPosition(shopNPC.PrimaryPart.CFrame)
+        task.wait(0.5)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes and remotes:FindFirstChild("BuyItem") then
+            remotes.BuyItem:FireServer("Soil")
+            remotes.BuyItem:FireServer("Seed")
+            task.wait(0.5)
+        end
+    else
+        print("Debug: หา NPC ร้านค้า 'ShopNPC' ไม่เจอ!")
+    end
+end
+
+-- 3. ตู้ ATM
+local function handleBankATM()
+    local atmMachine = Workspace:FindFirstChild("ATM", true) or Workspace:FindFirstChild("BankMachine", true)
+    if atmMachine then
+        print("Debug: กำลังวิ่งไปฝากเงินที่ตู้ ATM...")
+        local targetCF = atmMachine.PrimaryPart and atmMachine.PrimaryPart.CFrame or atmMachine.CFrame
+        walkToPosition(targetCF)
+        task.wait(0.5)
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes and remotes:FindFirstChild("Bank") then
+            remotes.Bank:FireServer("Deposit", "All")
+        end
+    end
+end
+
+-- ลูปหลัก
+task.spawn(function()
+    while true do
+        if getgenv().UranusSystem then
+            pcall(function()
+                local myHouse = ensureHouseExists()
+                if not myHouse then 
+                    task.wait(3)
+                    return 
+                end
+
+                buySupplies()
+                task.wait(1)
+
+                local farmPlots = myHouse:FindFirstChild("FarmPlots")
+                if farmPlots then
+                    for _, plot in ipairs(farmPlots:GetChildren()) do
+                        if not getgenv().UranusSystem then break end
+                        local status = plot:GetAttribute("Status")
+                        if status == "Empty" or status == "Ready" then
+                            walkToPosition(plot.CFrame)
+                            task.wait(0.4)
+                            local prompt = plot:FindFirstChild("ProximityPrompt", true)
+                            if prompt then fireproximityprompt(prompt) end
+                            task.wait(1.5)
+                        end
+                    end
+                else
+                    print("Debug: หาแปลงปลูก 'FarmPlots' ในบ้านไม่เจอ!")
+                end
+
+                handleBankATM()
+                task.wait(5)
+            end)
+        end
+        task.wait(1)
+    end
+end)
