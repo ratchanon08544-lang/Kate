@@ -1,0 +1,250 @@
+-- ==========================================================
+--  Uranus Hub : BlockSpin Ultimate (Fixed Path & Auto-Scan)
+-- ==========================================================
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+getgenv().UranusSystem = false
+
+-- สร้างหน้าต่าง UI
+local screenGuiName = "UranusHub_FarmUI"
+if CoreGui:FindFirstChild(screenGuiName) then
+    CoreGui[screenGuiName]:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = screenGuiName
+screenGui.Parent = CoreGui
+screenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 140)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🪐 Uranus Hub : Farm"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 16
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0.9, 0, 0, 50)
+toggleButton.Position = UDim2.new(0.05, 0, 0.45, 0)
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+toggleButton.BorderSizePixel = 0
+toggleButton.Text = "Status: OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 15
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = mainFrame
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = toggleButton
+
+toggleButton.MouseButton1Click:Connect(function()
+    getgenv().UranusSystem = not getgenv().UranusSystem
+    if getgenv().UranusSystem then
+        toggleButton.Text = "Status: ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        print("Uranus Hub: เปิดการทำงานแล้ว!")
+    else
+        toggleButton.Text = "Status: OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        print("Uranus Hub: ปิดการทำงานแล้ว!")
+        if Workspace:FindFirstChild("UranusRedMarker") then
+            Workspace.UranusRedMarker:Destroy()
+        end
+    end
+end)
+
+-- ฟังก์ชันสร้างแท่งสีแดง
+local function createRedMarker(targetCFrame)
+    if Workspace:FindFirstChild("UranusRedMarker") then
+        Workspace.UranusRedMarker:Destroy()
+    end
+    local marker = Instance.new("Part")
+    marker.Name = "UranusRedMarker"
+    marker.Size = Vector3.new(2, 100, 2)
+    marker.Anchored = true
+    marker.CanCollide = false
+    marker.Transparency = 0.4
+    marker.BrickColor = BrickColor.new("Bright red")
+    marker.Material = Enum.Material.Neon
+    marker.CFrame = targetCFrame + Vector3.new(0, 50, 0)
+    marker.Parent = Workspace
+end
+
+-- ฟังก์ชันเดิน
+local function walkToPosition(targetCFrame)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return false end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character.HumanoidRootPart
+    if not humanoid then return false end
+
+    createRedMarker(targetCFrame)
+
+    local path = PathfindingService:CreatePath({ AgentRadius = 2, AgentHeight = 5, AgentCanJump = true })
+    local success, _ = pcall(function()
+        path:ComputeAsync(rootPart.Position, targetCFrame.Position)
+    end)
+
+    if success and path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        for _, waypoint in ipairs(waypoints) do
+            if not getgenv().UranusSystem then return false end
+            humanoid:MoveTo(waypoint.Position)
+            if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+            local reached = false
+            local connection
+            connection = humanoid.MoveToFinished:Connect(function()
+                reached = true
+                if connection then connection:Disconnect() end
+            end)
+            task.spawn(function()
+                task.wait(2.5)
+                if not reached then
+                    reached = true
+                    if connection then connection:Disconnect() end
+                end
+            end)
+            repeat task.wait() until reached
+        end
+        return true
+    else
+        humanoid:MoveTo(targetCFrame.Position)
+        task.wait(2)
+        return true
+    end
+end
+
+-- 1. ระบบเช็คบ้าน (สแกนหา ProximityPrompt ที่เกี่ยวกับบ้านแทน)
+local function ensureHouseExists()
+    -- วนลูปหา Prompt ทั้งหมดใน Workspace เพื่อดูว่ามีอันไหนเกี่ยวกับการซื้อบ้านหรือบ้านของเราไหม
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local parentName = string.lower(obj.Parent.Name)
+            local actionText = string.lower(obj.ActionText or "")
+            -- ถ้าเจอคำว่า house หรือ buy ในแมพ
+            if string.find(parentName, "house") or string.find(actionText, "house") or string.find(actionText, "buy") then
+                -- เช็คว่าเป็นบ้านของเราหรือยัง
+                if obj.Parent:GetAttribute("Owner") == LocalPlayer.Name then
+                    return obj.Parent
+                end
+            end
+        end
+    end
+
+    -- ถ้ายังไม่มี ให้ลองหาป้ายซื้อบ้านทั่วไปแล้วเดินไปกด
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if string.lower(obj.ActionText):find("buy") or string.lower(obj.Parent.Name):find("plot") then
+                print("Debug: พบจุดซื้อบ้าน กำลังเดินไป...")
+                walkToPosition(obj.Parent.CFrame or obj.Parent.PrimaryPart.CFrame)
+                task.wait(0.5)
+                fireproximityprompt(obj)
+                task.wait(1.5)
+                break
+            end
+        end
+    end
+    return nil
+end
+
+-- 2. ซื้ออุปกรณ์
+local function buySupplies()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and (string.lower(obj.Name):find("shop") or string.lower(obj.Name):find("npc")) then
+            if obj.PrimaryPart then
+                print("Debug: พบร้านค้า กำลังเดินไปซื้ออุปกรณ์...")
+                walkToPosition(obj.PrimaryPart.CFrame)
+                task.wait(0.5)
+                local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                if remotes then
+                    for _, remote in ipairs(remotes:GetDescendants()) do
+                        if remote:IsA("RemoteEvent") and (string.lower(remote.Name):find("buy") or string.lower(remote.Name):find("shop")) then
+                            remote:FireServer("Soil")
+                            remote:FireServer("Seed")
+                        end
+                    end
+                end
+                break
+            end
+        end
+    end
+end
+
+-- 3. ตู้ ATM
+local function handleBankATM()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") and (string.lower(obj.Name):find("atm") or string.lower(obj.Name):find("bank")) then
+            local targetCF = obj.PrimaryPart and obj.PrimaryPart.CFrame or obj.CFrame
+            print("Debug: กำลังวิ่งไปฝากเงินที่ ATM...")
+            walkToPosition(targetCF)
+            task.wait(0.5)
+            local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+            if remotes then
+                for _, remote in ipairs(remotes:GetDescendants()) do
+                    if remote:IsA("RemoteEvent") and string.lower(remote.Name):find("bank") then
+                        remote:FireServer("Deposit", "All")
+                    end
+                end
+            end
+            break
+        end
+    end
+end
+
+-- ลูปหลัก
+task.spawn(function()
+    while true do
+        if getgenv().UranusSystem then
+            pcall(function()
+                local myHouse = ensureHouseExists()
+                if not myHouse then 
+                    task.wait(3)
+                    return 
+                end
+
+                buySupplies()
+                task.wait(1)
+
+                -- หาแปลงปลูกในบ้าน
+                for _, plot in ipairs(myHouse:GetDescendants()) do
+                    if not getgenv().UranusSystem then break end
+                    if plot:IsA("Model") or plot:IsA("BasePart") then
+                        local status = plot:GetAttribute("Status")
+                        if status == "Empty" or status == "Ready" then
+                            walkToPosition(plot.CFrame)
+                            task.wait(0.4)
+                            local prompt = plot:FindFirstChildOfClass("ProximityPrompt")
+                            if prompt then fireproximityprompt(prompt) end
+                            task.wait(1.5)
+                        end
+                    end
+                end
+
+                handleBankATM()
+                task.wait(5)
+            end)
+        end
+        task.wait(1)
+    end
+end)
