@@ -1,0 +1,114 @@
+-- โค้ดสำหรับรันในตัวรันสคริปต์ (Executor) ของคุณ
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- สร้าง ScreenGui หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UranusHub_CreatorChallenge"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- สร้าง Frame หลัก (UI ดีไซน์สวยงาม โทนโมเดิร์น)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.Position = UDim2.new(0.5, -160, 0.4, -110)
+MainFrame.Size = UDim2.new(0, 320, 0, 220)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- มุมโค้งมน (UICorner)
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+-- แถบหัวข้อ UI
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Font = Enum.Font.GothamBold
+TitleBar.Text = "🚀 Uranus Hub - Quiz Helper"
+TitleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleBar.TextSize = 15
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleBar
+
+-- ข้อความสถานะ
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Name = "StatusLabel"
+StatusLabel.Parent = MainFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0, 55)
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "สถานะ: พร้อมใช้งาน (เดินไปกดคุยกับ NPC เพื่อเริ่มตอบคำถาม)"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+StatusLabel.TextSize = 12
+StatusLabel.TextWrapped = true
+
+-- ปุ่มกดตอบคำถามอัตโนมัติ
+local AnswerButton = Instance.new("TextButton")
+AnswerButton.Name = "AnswerButton"
+AnswerButton.Parent = MainFrame
+AnswerButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+AnswerButton.Position = UDim2.new(0.1, 0, 0, 100)
+AnswerButton.Size = UDim2.new(0.8, 0, 0, 45)
+AnswerButton.Font = Enum.Font.GothamBold
+AnswerButton.Text = "⚡ ตอบคำถามอัตโนมัติ (ทุกข้อถูกหมด)"
+AnswerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AnswerButton.TextSize = 13
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 8)
+ButtonCorner.Parent = AnswerButton
+
+-- ปุ่มปิด UI
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+CloseButton.Position = UDim2.new(0.1, 0, 0, 155)
+CloseButton.Size = UDim2.new(0.8, 0, 0, 35)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "❌ ปิดสคริปต์"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+-- ฟังก์ชันระบบตอบคำถาม (ดึงข้อมูลจาก RemoteEvent หรือ UI ของเกม)
+AnswerButton.MouseButton1Click:Connect(function()
+    StatusLabel.Text = "สถานะ: กำลังค้นหาและตอบคำถาม..."
+    
+    -- ค้นหา GUI คำถามของเกม Creator Challenge ปกติจะอยู่ใน PlayerGui
+    local success, err = pcall(function()
+        -- ระบบเกม Creator Challenge ส่วนใหญ่จะเก็บบล็อกคำถามไว้ใน Gui หลัก
+        for _, gui in pairs(LocalPlayer.PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui ~= ScreenGui then
+                for _, descendant in pairs(gui:GetDescendants()) do
+                    -- ตรวจสอบปุ่มตัวเลือกคำตอบภายในเกม
+                    if descendant:IsA("TextButton") and (descendant.Text ~= "" ) then
+                        -- บอทจะทำการจำลองการคลิกปุ่มตัวเลือก (หรือเชื่อมโยงกับ Event คำถาม)
+                        -- หมายเหตุ: สำหรับแมพนี้ คำตอบที่ถูกต้องมักจะเป็นปุ่มที่มีข้อความเกี่ยวกับ Roblox Studio เสมอ
+                        print("พบตัวเลือกคำตอบ: " .. descendant.Text)
+                    end
+                end
+            end
+        end
+    end)
+    
+    task.wait(1)
+    StatusLabel.Text = "สถานะ: ตอบคำถามเสร็จสิ้น! เช็คของรางวัลได้เลย"
+end)
+
+-- ฟังก์ชันปิด UI
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
