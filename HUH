@@ -1,0 +1,146 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- สร้าง ScreenGui หลัก
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UranusHub_CreatorChallenge_V2"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+-- สร้าง Frame หลัก
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.Position = UDim2.new(0.5, -160, 0.4, -110)
+MainFrame.Size = UDim2.new(0, 320, 0, 220)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = MainFrame
+
+-- แถบหัวข้อ UI
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Font = Enum.Font.GothamBold
+TitleBar.Text = "🚀 Uranus Hub - Auto Quiz Fix"
+TitleBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleBar.TextSize = 15
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleBar
+
+-- ข้อความสถานะ
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = MainFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0, 55)
+StatusLabel.Size = UDim2.new(1, -20, 0, 30)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "สถานะ: กดปุ่มเพื่อเริ่มรันระบบตอบคำถามอัตโนมัติ"
+StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
+StatusLabel.TextSize = 12
+StatusLabel.TextWrapped = true
+
+-- ปุ่มกดทำงานแบบวนลูป
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = MainFrame
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+ToggleButton.Position = UDim2.new(0.1, 0, 0, 100)
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 45)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "⚡ เปิดระบบออโต้คลิกคำตอบ"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 13
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 8)
+ButtonCorner.Parent = ToggleButton
+
+-- ปุ่มปิด UI
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(230, 50, 50)
+CloseButton.Position = UDim2.new(0.1, 0, 0, 155)
+CloseButton.Size = UDim2.new(0.8, 0, 0, 35)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "❌ ปิดสคริปต์"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+-- ฟังก์ชันจำลองการคลิกปุ่มบนมือถือ/จอ
+local function simulateClick(guiButton)
+    if guiButton and guiButton:IsA("GuiButton") then
+        -- ลองสั่งยิง Event คลิกของ Roblox โดยตรง
+        for _, connection in pairs(getconnections(guiButton.MouseButton1Click)) do
+            connection:Fire()
+        end
+        for _, connection in pairs(getconnections(guiButton.Activated)) do
+            connection:Fire()
+        end
+    end
+end
+
+-- ระบบเปิด/ปิดการทำงานแบบลูปเช็คคำถาม
+local running = false
+
+ToggleButton.MouseButton1Click:Connect(function()
+    running = not running
+    if running then
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        ToggleButton.Text = "🛑 กำลังทำงาน... (กดเพื่อหยุด)"
+        StatusLabel.Text = "สถานะ: กำลังสแกนหาข้อสอบและปุ่มส่งคำตอบ..."
+        
+        task.spawn(function()
+            while running do
+                pcall(function()
+                    -- วนหาปุ่มทั้งหมดใน PlayerGui (รวมถึงหน้าจอคำถามของแมพ)
+                    for _, gui in pairs(PlayerGui:GetDescendants()) do
+                        if gui:IsA("TextButton") and gui.Visible then
+                            local text = string.lower(gui.Text)
+                            
+                            -- ตรวจสอบหาปุ่มตัวเลือก (ปกติแมพนี้มักจะเป็นตัวเลือกข้อ 1, 2, 3 หรือมีข้อความคำตอบ)
+                            -- หรือปุ่มยืนยัน / ถัดไป / ส่งคำตอบ (Next, Submit, Continue, OK)
+                            if text ~= "" and (
+                                string.find(text, "next") or 
+                                string.find(text, "submit") or 
+                                string.find(text, "continue") or 
+                                string.find(text, "ok") or
+                                string.find(text, "ตอบ") or
+                                string.find(text, "ถัดไป") or
+                                string.find(text, "ยืนยัน")
+                            ) then
+                                simulateClick(gui)
+                            end
+                            
+                            -- หากเจอตัวเลือกคำตอบข้อแรกๆ (สคริปต์จะกดเลือกตัวเลือกแรกหรือตัวเลือกที่มีเนื้อหา)
+                            if gui.Parent and (string.find(string.lower(gui.Parent.Name), "answer") or string.find(string.lower(gui.Parent.Name), "option") or string.find(string.lower(gui.Name), "button")) then
+                                simulateClick(gui)
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5) -- เช็คทุกๆ ครึ่งวินาที
+            end
+        end)
+    else
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        ToggleButton.Text = "⚡ เปิดระบบออโต้คลิกคำตอบ"
+        StatusLabel.Text = "สถานะ: หยุดการทำงานแล้ว"
+    end
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    running = false
+    ScreenGui:Destroy()
+end)
